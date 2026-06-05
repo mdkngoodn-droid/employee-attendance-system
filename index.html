@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>نظام إدارة الموظفين - حضور ورواتب</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        /* الحاوية الرئيسية */
+        .app-container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow: hidden;
+            padding: 20px;
+        }
+        /* شاشة تسجيل الدخول */
+        .login-screen, .dashboard-screen {
+            transition: 0.3s;
+        }
+        .hidden {
+            display: none;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #1e2a47;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e66;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 28px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+        button {
+            background: #2c3e66;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #1e2a47;
+        }
+        .card {
+            background: #f8fafc;
+            border-radius: 24px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border-right: 6px solid #2c3e66;
+        }
+        .stats {
+            background: #e9eff7;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .stat-box {
+            background: white;
+            border-radius: 20px;
+            padding: 12px;
+            flex: 1;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .salary-display {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #27ae60;
+        }
+        .absence-badge {
+            background: #e67e22;
+            color: white;
+            border-radius: 40px;
+            padding: 4px 12px;
+            display: inline-block;
+        }
+        .danger-btn {
+            background: #c0392b;
+        }
+        .warning {
+            background: #f39c12;
+        }
+        .location-info {
+            font-size: 14px;
+            background: #ecf0f1;
+            padding: 8px;
+            border-radius: 20px;
+            margin-top: 8px;
+        }
+        .face-area {
+            border: 2px dashed #3498db;
+            padding: 12px;
+            border-radius: 28px;
+            text-align: center;
+            margin: 12px 0;
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        hr {
+            margin: 20px 0;
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .nav-btn {
+            background: #bdc3c7;
+            color: #2c3e50;
+            width: auto;
+            padding: 8px 18px;
+        }
+        .active-nav {
+            background: #2c3e66;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container" id="appRoot">
+    <!-- شاشة تسجيل الدخول -->
+    <div id="loginScreen" class="login-screen">
+        <h1>🔐 تسجيل دخول الموظفين</h1>
+        <div class="input-group">
+            <label>📧 البريد الإلكتروني</label>
+            <input type="email" id="loginEmail" placeholder="employee@company.com">
+        </div>
+        <div class="input-group">
+            <label>🔒 كلمة المرور</label>
+            <input type="password" id="loginPassword" placeholder="password">
+        </div>
+        <button id="doLoginBtn">تسجيل الدخول</button>
+        <p style="text-align:center; font-size:13px; margin-top:20px;">تجريبي: admin@demo.com / 123456<br> أو موظف: ahmed@demo.com / 123</p>
+    </div>
+
+    <!-- الواجهة الرئيسية بعد الدخول -->
+    <div id="dashboardScreen" class="dashboard-screen hidden">
+        <div class="nav-buttons">
+            <button data-tab="main" class="nav-btn active-nav">🏠 الرئيسية</button>
+            <button data-tab="attendance" class="nav-btn">✅ تسجيل الدوام (GPS)</button>
+            <button data-tab="leave" class="nav-btn">📅 طلب إجازة</button>
+            <button data-tab="absences" class="nav-btn">⚠️ سجل الغيابات</button>
+        </div>
+
+        <!-- تبويب الرئيسية: عداد الراتب والغيابات -->
+        <div id="tabMain" class="tab-content">
+            <h2>👋 مرحباً، <span id="empName"></span></h2>
+            <div class="card stats">
+                <div class="stat-box">
+                    <div>📆 أيام الدوام</div>
+                    <div class="salary-display" id="attendedDays">0</div>
+                </div>
+                <div class="stat-box">
+                    <div>💰 الراتب الشهري</div>
+                    <div class="salary-display" id="salaryTotal">0 د.أ</div>
+                </div>
+                <div class="stat-box">
+                    <div>⚠️ أيام الغياب</div>
+                    <div id="absenceDays">0</div>
+                </div>
+            </div>
+            <div class="card">
+                <p><strong>📌 ملاحظة:</strong> كل يوم دوام يضاف 25 دينار أردني (راتب يومي افتراضي).<br>
+                يتم احتساب الراتب = عدد أيام الحضور × 25 دينار.</p>
+                <p><strong>🏖️ الإجازات المعتمدة:</strong> الموظف عندما يقدم طلب إجازة ويتم قبولها، تُخصم من أيام الغياب غير المبررة.</p>
+            </div>
+            <div class="card">
+                <h3>📊 إحصائيات سريعة</h3>
+                <p>✅ الحضور اليوم مسجل: <span id="todayStatus">لا يوجد تسجيل اليوم</span></p>
+                <button id="manualAttendanceBtn" class="warning">📍 تسجيل دوام يدوي (اختبار GPS)</button>
+            </div>
+        </div>
+
+        <!-- تبويب تسجيل الدوام + GPS + كاميرا تعرف على الوجه (محاكاة) -->
+        <div id="tabAttendance" class="tab-content hidden">
+            <h2>📍 تسجيل الدوام عبر GPS + الوجه</h2>
+            <div class="card">
+                <button id="getLocationBtn">🌍 تحديد موقعي الحالي (GPS)</button>
+                <div id="locationResult" class="location-info">لم يتم تحديد الموقع بعد</div>
+                <button id="recordGPSAttendance" style="background:#2ecc71;" disabled>✅ تسجيل الحضور بناءً على الموقع</button>
+            </div>
+            <div class="card face-area">
+                <h3>🤖 التحقق بالوجه (تجريبي)</h3>
+                <p>لمحاكاة التعرف على الوجه، اضغط زر "التعرف بالكاميرا" سيتم قبول الوجه تلقائياً للنموذج.</p>
+                <button id="startFaceRecognition">😀 التعرف على الوجه (محاكاة)</button>
+                <div id="faceResult" class="location-info"></div>
+            </div>
+            <div class="card">
+                <p>✅ بعد نجاح الموقع والوجه يمكن تسجيل الدوام لليوم، لن يتم تسجيل أكثر من مرة في اليوم.</p>
+                <button id="finalAttendanceRecord" disabled>📝 تسجيل الدوام النهائي</button>
+                <div id="attendanceMsg"></div>
+            </div>
+        </div>
+
+        <!-- تبويب طلب الاجازات -->
+        <div id="tabLeave" class="tab-content hidden">
+            <h2>📝 طلب إجازة</h2>
+            <div class="card">
+                <div class="input-group">
+                    <label>📅 تاريخ بدء الإجازة</label>
+                    <input type="date" id="leaveStart">
+                </div>
+                <div class="input-group">
+                    <label>📅 تاريخ نهاية الإجازة</label>
+                    <input type="date" id="leaveEnd">
+                </div>
+                <div class="input-group">
+                    <label>📌 سبب الإجازة</label>
+                    <input type="text" id="leaveReason" placeholder="مثال: إجازة مرضية / سنوية">
+                </div>
+                <button id="submitLeaveBtn">تقديم طلب الإجازة</button>
+                <div id="leaveStatusMsg"></div>
+            </div>
+            <div class="card">
+                <h3>الإجازات السابقة المقدمة</h3>
+                <ul id="leaveList"></ul>
+                <p>ملاحظة: الإجازة بعد قبولها تُخصم من أيام الغياب & تمنع خصم الراتب.</p>
+                <button id="approveLeavesBtn" style="background:#27ae60;">👨‍💼 قبول جميع الإجازات المعلقة (للمدير)</button>
+            </div>
+        </div>
+
+        <!-- تبويب نافذة الغيابات -->
+        <div id="tabAbsences" class="tab-content hidden">
+            <h2>📋 سجل الغيابات والتقارير</h2>
+            <div class="card">
+                <p><strong>أيام الغياب بدون عذر أو لم يتم تسجيل حضورها:</strong></p>
+                <div id="absenceReportList"></div>
+                <hr>
+                <p><strong>تسجيل غياب يدوي (للمدير):</strong></p>
+                <button id="markAbsenceManualBtn" class="danger-btn">➕ تسجيل يوم غياب لليوم الحالي (بدون عذر)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+&#x20;   // ----------------------------------------
+
+&#x20;   // نموذج بيانات الموظفين (LocalStorage)
+
+&#x20;   // ----------------------------------------
+
+&#x20;   let currentUser = null;   // { id, name, email, role, attendedDays, totalSalary, absences, attendanceLog, leaves, pendingLeaves }
+
+&#x20;   let users = \[];
+
+
+
+&#x20;   // ثوابت
+
+&#x20;   const DAILY\_RATE\_JOD = 25;  // 25 دينار اردني لكل يوم دوام
+
+
+
+&#x20;   // تهيئة البيانات الأولية
+
+&#x20;   function initData() {
+
+&#x20;       const stored = localStorage.getItem("employeeSysData");
+
+&#x20;       if(stored) {
+
+&#x20;           users = JSON.parse(stored);
+
+&#x20;       } else {
+
+&#x20;           users = \[
+
+&#x20;               { id: 1, name: "أحمد علي", email: "ahmed@demo.com", password: "123", role: "employee", attendedDays: 3, totalSalary: 75, absences: 1, attendanceLog: \["2026-06-01","2026-06-02","2026-06-03"], leaves: \[{start:"2026-06-05", end:"2026-06-06", reason:"إجازة مرضية", status:"approved"}], pendingLeaves: \[] },
+
+&#x20;               { id: 2, name: "مدير النظام", email: "admin@demo.com", password: "123456", role: "admin", attendedDays: 0, totalSalary: 0, absences: 0, attendanceLog: \[], leaves: \[], pendingLeaves: \[] }
+
+&#x20;           ];
+
+&#x20;           saveData();
+
+&#x20;       }
+
+&#x20;       // اضافة خاصية لتخزين طلبات الاجازات الحديثة ان لم توجد لكل موظف
+
+&#x20;       users.forEach(u => {
+
+&#x20;           if(!u.pendingLeaves) u.pendingLeaves = \[];
+
+&#x20;           if(!u.leaves) u.leaves = \[];
+
+&#x20;           if(!u.attendanceLog) u.attendanceLog = \[];
+
+&#x20;           if(u.absences === undefined) u.absences = 0;
+
+&#x20;       });
+
+&#x20;       saveData();
+
+&#x20;   }
+
+
+
+&#x20;   function saveData() {
+
+&#x20;       localStorage.setItem("employeeSysData", JSON.stringify(users));
+
+&#x20;   }
+
+
+
+&#x20;   function updateUserAttendanceAndSalary(user) {
+
+&#x20;       // احتساب الراتب = عدد أيام الحضور \* 25 دينار
+
+&#x20;       user.totalSalary = user.attendedDays \* DAILY\_RATE\_JOD;
+
+&#x20;       saveData();
+
+&#x20;   }
+
+
+
+&#x20;   // الحصول على تاريخ اليوم بصيغة YYYY-MM-DD
+
+&#x20;   function getTodayStr() {
+
+&#x20;       return new Date().toISOString().slice(0,10);
+
+&#x20;   }
+
+
+
+&#x20;   // تسجيل دوام (حضور) لليوم الحالي إن لم يكن مسجلاً
+
+&#x20;   function registerAttendanceForToday(user) {
+
+&#x20;       const today = getTodayStr();
+
+&#x20;       if(user.attendanceLog.includes(today)) {
+
+&#x20;           return { success: false, msg: "تم تسجيل الحضور مسبقاً اليوم!" };
+
+&#x20;       }
+
+&#x20;       // اضافة يوم دوام
+
+&#x20;       user.attendanceLog.push(today);
+
+&#x20;       user.attendedDays = user.attendanceLog.length;
+
+&#x20;       // اعادة حساب الراتب
+
+&#x20;       updateUserAttendanceAndSalary(user);
+
+&#x20;       // ملاحظة: لو كان هناك غياب سابق مسجل لليوم لكنه حضره نزيل الغياب لو موجود كقاعدة بسيطة
+
+&#x20;       // نفحص إذا كان اليوم موجود في سجل غياب؟ لا يوجد سجل غياب بالأيام لكن لدينا متغير absences كعدد كلي.
+
+&#x20;       // لكن سنعمل على آلية: عدد الغيابات = عدد أيام الشهر (افتراضي 30 يوم تجريبي) - عدد حضور - أيام الإجازات المعتمدة.
+
+&#x20;       recalcAbsencesBasedOnLogs(user);
+
+&#x20;       saveData();
+
+&#x20;       return { success: true, msg: "تم تسجيل الحضور بنجاح + تم تحديث الراتب!" };
+
+&#x20;   }
+
+
+
+&#x20;   // إعادة حساب الغيابات: أيام العمل المتوقعة (نظام بسيط: كل الأيام من بداية الشهر حتى اليوم) لكل موظف. لكن نبسطها: عدد أيام الغياب بناءً على الأيام الفعلية التي لم يحضرها الموظف من أيام العمل الافتراضية (من أول الشهر الحالي)
+
+&#x20;   // لتطبيق بسيط: نحسب أيام الشهر الحالي حتى اليوم ونطرح منها أيام الحضور وأيام الإجازات المعتمدة.
+
+&#x20;   function recalcAbsencesBasedOnLogs(user) {
+
+&#x20;       const today = getTodayStr();
+
+&#x20;       const currentYearMonth = today.slice(0,7); // 2026-06
+
+&#x20;       let daysInMonth = new Date(parseInt(currentYearMonth.split("-")\[0]), parseInt(currentYearMonth.split("-")\[1]), 0).getDate();
+
+&#x20;       let currentDayNum = parseInt(today.split("-")\[2]);
+
+&#x20;       let workingDaysUptillNow = currentDayNum; // تبسيط: نفترض كل أيام الشهر دوام
+
+&#x20;       // احتساب أيام الإجازة المعتمدة داخل هذا الشهر
+
+&#x20;       let approvedLeaveDaysCount = 0;
+
+&#x20;       user.leaves.forEach(leave => {
+
+&#x20;           if(leave.status === "approved") {
+
+&#x20;               let start = new Date(leave.start);
+
+&#x20;               let end = new Date(leave.end);
+
+&#x20;               let iter = new Date(start);
+
+&#x20;               while(iter <= end) {
+
+&#x20;                   let dStr = iter.toISOString().slice(0,10);
+
+&#x20;                   if(dStr >= currentYearMonth+"-01" \&\& dStr <= today) {
+
+&#x20;                       approvedLeaveDaysCount++;
+
+&#x20;                   }
+
+&#x20;                   iter.setDate(iter.getDate()+1);
+
+&#x20;               }
+
+&#x20;           }
+
+&#x20;       });
+
+&#x20;       let attendedCountInMonth = user.attendanceLog.filter(d => d >= currentYearMonth+"-01" \&\& d <= today).length;
+
+&#x20;       let computedAbsences = workingDaysUptillNow - attendedCountInMonth - approvedLeaveDaysCount;
+
+&#x20;       if(computedAbsences < 0) computedAbsences = 0;
+
+&#x20;       user.absences = computedAbsences;
+
+&#x20;       saveData();
+
+&#x20;   }
+
+
+
+&#x20;   // تقديم طلب إجازة
+
+&#x20;   function requestLeave(user, startDate, endDate, reason) {
+
+&#x20;       if(!startDate || !endDate) return "يرجى اختيار تاريخ صحيح";
+
+&#x20;       const newLeave = { start: startDate, end: endDate, reason: reason, status: "pending", requestedAt: getTodayStr() };
+
+&#x20;       user.pendingLeaves.push(newLeave);
+
+&#x20;       saveData();
+
+&#x20;       return "تم تقديم طلب الإجازة بنجاح، بإنتظار الموافقة.";
+
+&#x20;   }
+
+
+
+&#x20;   // قبول جميع الإجازات المعلقة (للمدير)
+
+&#x20;   function approveAllPendingLeaves(adminUser, targetUserId) {
+
+&#x20;       let target = users.find(u=>u.id === targetUserId);
+
+&#x20;       if(!target) return false;
+
+&#x20;       if(adminUser.role !== "admin") return false;
+
+&#x20;       let pending = \[...target.pendingLeaves];
+
+&#x20;       pending.forEach(p => {
+
+&#x20;           p.status = "approved";
+
+&#x20;           target.leaves.push(p);
+
+&#x20;       });
+
+&#x20;       target.pendingLeaves = \[];
+
+&#x20;       recalcAbsencesBasedOnLogs(target);
+
+&#x20;       saveData();
+
+&#x20;       return true;
+
+&#x20;   }
+
+
+
+&#x20;   // عرض الواجهة حسب المستخدم
+
+&#x20;   function renderDashboard() {
+
+&#x20;       if(!currentUser) return;
+
+&#x20;       document.getElementById("empName").innerText = currentUser.name;
+
+&#x20;       document.getElementById("attendedDays").innerText = currentUser.attendedDays;
+
+&#x20;       document.getElementById("salaryTotal").innerText = currentUser.totalSalary + " د.أ";
+
+&#x20;       document.getElementById("absenceDays").innerText = currentUser.absences;
+
+&#x20;       const todayStatusSpan = document.getElementById("todayStatus");
+
+&#x20;       const hasAttended = currentUser.attendanceLog.includes(getTodayStr());
+
+&#x20;       todayStatusSpan.innerText = hasAttended ? "✅ تم تسجيل دوام اليوم" : "❌ لم يتم تسجيل دوام اليوم بعد";
+
+
+
+&#x20;       // عرض قائمة الاجازات المقدمة
+
+&#x20;       const leaveListUl = document.getElementById("leaveList");
+
+&#x20;       if(leaveListUl) {
+
+&#x20;           let allLeaves = \[...currentUser.leaves, ...currentUser.pendingLeaves];
+
+&#x20;           leaveListUl.innerHTML = allLeaves.map(l => `<li>${l.start} → ${l.end} (${l.reason}) : ${l.status === "approved" ? "معتمدة" : l.status === "pending" ? "قيد الانتظار" : "مرفوضة"}</li>`).join("");
+
+&#x20;       }
+
+
+
+&#x20;       // عرض تقرير الغيابات (نافذة الغيابات)
+
+&#x20;       const absRep = document.getElementById("absenceReportList");
+
+&#x20;       if(absRep) {
+
+&#x20;           absRep.innerHTML = `<p>إجمالي أيام الغياب الغير مبررة: ${currentUser.absences} يوم</p><p>أيام الحضور: ${currentUser.attendedDays}</p>`;
+
+&#x20;       }
+
+
+
+&#x20;       // اعادة حساب الغيابات دورياً
+
+&#x20;       recalcAbsencesBasedOnLogs(currentUser);
+
+&#x20;       saveData();
+
+&#x20;   }
+
+
+
+&#x20;   // تبديل التبويبات
+
+&#x20;   let currentTab = "main";
+
+&#x20;   function switchTab(tabId) {
+
+&#x20;       document.querySelectorAll(".tab-content").forEach(tab => tab.classList.add("hidden"));
+
+&#x20;       document.getElementById(`tab${tabId.charAt(0).toUpperCase()+tabId.slice(1)}`).classList.remove("hidden");
+
+&#x20;       document.querySelectorAll(".nav-btn").forEach(btn => btn.classList.remove("active-nav"));
+
+&#x20;       document.querySelector(`.nav-btn\[data-tab="${tabId}"]`).classList.add("active-nav");
+
+&#x20;       currentTab = tabId;
+
+&#x20;       if(tabId === "absences" || tabId === "leave") renderDashboard(); // تحديث
+
+&#x20;       renderDashboard();
+
+&#x20;   }
+
+
+
+&#x20;   // GPS ومحاكاة الوجه
+
+&#x20;   let currentLocation = null;
+
+&#x20;   let faceVerified = false;
+
+&#x20;   document.addEventListener("click", (e) => {
+
+&#x20;       if(e.target.id === "getLocationBtn") {
+
+&#x20;           if(navigator.geolocation) {
+
+&#x20;               navigator.geolocation.getCurrentPosition(pos => {
+
+&#x20;                   currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+&#x20;                   document.getElementById("locationResult").innerHTML = `✅ تم تحديد موقعك: ${currentLocation.lat.toFixed(4)}, ${currentLocation.lng.toFixed(4)}<br> (محاكاة: ضمن نطاق العمل)`;
+
+&#x20;                   document.getElementById("recordGPSAttendance").disabled = false;
+
+&#x20;               }, err => {
+
+&#x20;                   document.getElementById("locationResult").innerHTML = "❌ خطأ في تحديد الموقع";
+
+&#x20;               });
+
+&#x20;           } else {
+
+&#x20;               alert("المتصفح لا يدعم GPS");
+
+&#x20;           }
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "recordGPSAttendance") {
+
+&#x20;           if(currentLocation) {
+
+&#x20;               alert("تم التحقق من الموقع بنجاح. يمكنك الآن تسجيل الدوام بالوجه.");
+
+&#x20;               document.getElementById("finalAttendanceRecord").disabled = false;
+
+&#x20;           } else {
+
+&#x20;               alert("يرجى تحديد الموقع أولاً");
+
+&#x20;           }
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "startFaceRecognition") {
+
+&#x20;           // محاكاة التعرف على الوجه
+
+&#x20;           if(confirm("محاكاة كاميرا الويب: اضغط موافق لتأكيد تطابق الوجه")) {
+
+&#x20;               faceVerified = true;
+
+&#x20;               document.getElementById("faceResult").innerHTML = "✅ تم التعرف على الوجه بنجاح!";
+
+&#x20;               if(currentLocation) document.getElementById("finalAttendanceRecord").disabled = false;
+
+&#x20;               else alert("يجب تحديد الموقع أولاً");
+
+&#x20;           }
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "finalAttendanceRecord") {
+
+&#x20;           if(!currentLocation) { alert("قم بتحديد الموقع أولاً"); return; }
+
+&#x20;           if(!faceVerified) { alert("يجب إتمام التعرف على الوجه (محاكاة)"); return; }
+
+&#x20;           let result = registerAttendanceForToday(currentUser);
+
+&#x20;           alert(result.msg);
+
+&#x20;           renderDashboard();
+
+&#x20;           // اعادة تعيين
+
+&#x20;           faceVerified = false;
+
+&#x20;           currentLocation = null;
+
+&#x20;           document.getElementById("finalAttendanceRecord").disabled = true;
+
+&#x20;           document.getElementById("recordGPSAttendance").disabled = true;
+
+&#x20;           document.getElementById("locationResult").innerHTML = "تم تسجيل الحضور";
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "manualAttendanceBtn") {
+
+&#x20;           let res = registerAttendanceForToday(currentUser);
+
+&#x20;           alert(res.msg);
+
+&#x20;           renderDashboard();
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "submitLeaveBtn") {
+
+&#x20;           let start = document.getElementById("leaveStart").value;
+
+&#x20;           let end = document.getElementById("leaveEnd").value;
+
+&#x20;           let reason = document.getElementById("leaveReason").value;
+
+&#x20;           let msg = requestLeave(currentUser, start, end, reason);
+
+&#x20;           document.getElementById("leaveStatusMsg").innerText = msg;
+
+&#x20;           renderDashboard();
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "approveLeavesBtn") {
+
+&#x20;           if(currentUser.role === "admin") {
+
+&#x20;               let targetUser = users.find(u => u.id !== currentUser.id \&\& u.role !== "admin");
+
+&#x20;               if(targetUser \&\& targetUser.pendingLeaves.length > 0) {
+
+&#x20;                   approveAllPendingLeaves(currentUser, targetUser.id);
+
+&#x20;                   alert(`تم قبول جميع إجازات الموظف ${targetUser.name}`);
+
+&#x20;                   renderDashboard();
+
+&#x20;               } else { alert("لا توجد طلبات إجازة معلقة لموظفين آخرين");}
+
+&#x20;           } else { alert("فقط المدير يمكنه قبول الإجازات");}
+
+&#x20;       }
+
+&#x20;       if(e.target.id === "markAbsenceManualBtn") {
+
+&#x20;           if(currentUser.role === "admin") {
+
+&#x20;               alert("تم تسجيل يوم غياب للموظف الحالي (اختبار)");
+
+&#x20;               currentUser.absences += 1;
+
+&#x20;               saveData();
+
+&#x20;               renderDashboard();
+
+&#x20;           } else {
+
+&#x20;               alert("فقط المدير يمكنه تسجيل غياب يدوي");
+
+&#x20;           }
+
+&#x20;       }
+
+&#x20;   });
+
+
+
+&#x20;   // تسجيل الدخول
+
+&#x20;   document.getElementById("doLoginBtn").addEventListener("click", () => {
+
+&#x20;       let email = document.getElementById("loginEmail").value.trim();
+
+&#x20;       let pass = document.getElementById("loginPassword").value.trim();
+
+&#x20;       let userFound = users.find(u => u.email === email \&\& u.password === pass);
+
+&#x20;       if(userFound) {
+
+&#x20;           currentUser = userFound;
+
+&#x20;           document.getElementById("loginScreen").classList.add("hidden");
+
+&#x20;           document.getElementById("dashboardScreen").classList.remove("hidden");
+
+&#x20;           // اعادة حساب الغيابات عند الدخول
+
+&#x20;           recalcAbsencesBasedOnLogs(currentUser);
+
+&#x20;           renderDashboard();
+
+&#x20;           switchTab("main");
+
+&#x20;           // اضافة مستمعين للتبويبات
+
+&#x20;           document.querySelectorAll(".nav-btn").forEach(btn => {
+
+&#x20;               btn.removeEventListener("click", navHandler);
+
+&#x20;               btn.addEventListener("click", navHandler);
+
+&#x20;           });
+
+&#x20;           function navHandler(e) {
+
+&#x20;               let tab = e.currentTarget.getAttribute("data-tab");
+
+&#x20;               switchTab(tab);
+
+&#x20;               if(tab === "attendance") {
+
+&#x20;                   // اعادة تعيين حالة الوجه و الـ GPS
+
+&#x20;                   currentLocation = null;
+
+&#x20;                   faceVerified = false;
+
+&#x20;                   document.getElementById("finalAttendanceRecord").disabled = true;
+
+&#x20;                   document.getElementById("recordGPSAttendance").disabled = true;
+
+&#x20;                   document.getElementById("locationResult").innerHTML = "لم يتم تحديد الموقع بعد";
+
+&#x20;                   document.getElementById("faceResult").innerHTML = "";
+
+&#x20;               }
+
+&#x20;               renderDashboard();
+
+&#x20;           }
+
+&#x20;       } else {
+
+&#x20;           alert("بيانات تسجيل الدخول غير صحيحة");
+
+&#x20;       }
+
+&#x20;   });
+
+
+
+&#x20;   initData();
+
+</body>
+</html>
